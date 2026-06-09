@@ -1,0 +1,32 @@
+[
+  {
+    "title": "H3K18 lactylation drives ferroptosis resistance and EGFR-TKI tolerance in lung adenocarcinoma",
+    "journal": "Cell Death & Disease",
+    "abstract": "Lactate accumulation in the tumor microenvironment promotes therapy resistance. Here we show that lactate-derived H3K18 lactylation upregulates SLC7A11 to suppress ferroptosis in EGFR-TKI-tolerant lung adenocarcinoma cells. Pharmacologic inhibition of lactate production restored TKI sensitivity in vivo. Our findings identify histone lactylation as a metabolic-epigenetic axis and a therapeutic vulnerability in drug-tolerant cancer."
+  },
+  {
+    "title": "Single-cell RNA sequencing reveals a prognostic immune signature in hepatocellular carcinoma",
+    "journal": "Discover Oncology",
+    "abstract": "We performed scRNA-seq on 24 hepatocellular carcinoma samples and identified eight major cell populations. A T-cell-exhaustion gene signature stratified patients into high- and low-risk groups predictive of overall survival. The signature was validated in TCGA and correlated with response to immune checkpoint blockade, providing a prognostic biomarker for clinical decision-making."
+  },
+  {
+    "title": "DNA methylation of GLP-1R promoter is associated with type 2 diabetes risk in a case-control cohort",
+    "journal": "Biochemical Pharmacology",
+    "abstract": "Promoter hypermethylation can silence gene expression. In a cohort of 412 patients and 400 controls, we found that methylation at three CpG sites in the GLP-1R promoter was significantly associated with type 2 diabetes status (p<0.01). Methylation correlated with reduced peripheral GLP-1R expression. These associations suggest GLP-1R methylation as a candidate epigenetic biomarker for diabetes risk."
+  },
+  {
+    "title": "Integration of ATAC-seq and RNA-seq reveals epigenetic regulation of heavy-metal tolerance in rice",
+    "journal": "BMC Plant Biology",
+    "abstract": "Rice (Oryza sativa) faces cadmium stress in contaminated soils. We profiled chromatin accessibility (ATAC-seq) and transcriptomes across cadmium exposure and identified accessible regions enriched near stress-response transcription factor genes. A regulatory module centered on OsbHLH was associated with tolerance, informing breeding strategies for safer crops in contaminated environments."
+  },
+  {
+    "title": "Histone demethylase MoRph1 regulates fungal development and pathogenicity in Magnaporthe oryzae",
+    "journal": "Journal of Fungi",
+    "abstract": "The rice blast fungus Magnaporthe oryzae causes devastating crop losses. We characterized MoRph1, a JmjC histone demethylase, and show that its deletion impairs conidiation, appressorium formation, and virulence. RNA-seq revealed dysregulation of pathogenicity genes. MoRph1 represents a potential antifungal target for protecting cereal crops."
+  },
+  {
+    "title": "A deep learning framework for predicting in vivo G-quadruplex formation from sequence",
+    "journal": "Biomolecules",
+    "abstract": "G-quadruplexes (G4s) are non-canonical DNA structures. We present iDualG4, a dual-channel convolutional-recurrent neural network that predicts G4 formation from primary sequence with improved accuracy over existing tools across multiple cell lines. The model generalizes to unseen genomes and is provided as a web server for the community."
+  }
+]

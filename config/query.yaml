@@ -1,0 +1,79 @@
+# Deterministic, cheap prefilter that cuts the daily firehose to a candidate set
+# BEFORE any LLM tokens are spent. This is a one-way door: anything excluded here
+# the relevance judge never sees, so keep it BROAD and let the LLM do the fine
+# discrimination (see spec §5).
+
+sources: [pubmed, europepmc]   # PubMed = published + some preprints; Europe PMC = preprints.
+
+lookback_days: 5           # Rolling window (spec §7). Deliberate: PubMed back-dates
+                           # and late-indexes records, so a single-day query drops
+                           # papers. The DB ledger guarantees each paper sends once.
+
+max_candidates_per_run: 400   # Safety cap before the (future) LLM stage. If a run
+                              # would exceed this, it is capped and logged — never
+                              # silently truncated.
+
+# Boolean term, drafted from the research program's vocabulary (grants/talks).
+#
+# Structure (see term-count analysis): the PRECISE epigenomics vocabulary is left
+# fully broad — it is low-volume and high-signal. The two GENERIC firehose terms,
+# "single-cell" and enhancer*, are GATED: they only count when an epigenomics
+# context term also appears. Over a 5-day window this cuts ~146/day -> ~57/day
+# (-61%), removing almost-entirely pure scRNA-seq / off-topic "enhancer" papers
+# while KEEPING single-cell-epigenomics and enhancer-regulation work.
+#
+# To loosen recall, move "single-cell"/enhancer* up into the first (broad) group.
+# To tighten further, delete them entirely (precise-only ~= 51/day).
+pubmed_term: >
+  (
+    "ATAC-seq" OR "ChIP-seq" OR "CUT&RUN" OR "CUT&Tag" OR CTCF OR cohesin
+    OR ncBAF OR BAF OR "SWI/SNF" OR epigenom* OR methylome OR chromatin
+    OR "3D genome" OR "topologically associating" OR "chromatin accessibility"
+    OR "scATAC-seq" OR "snATAC-seq" OR multiome OR "single-nucleus"
+  )
+  OR (
+    ("single-cell" OR enhancer*)
+    AND
+    (epigenom* OR chromatin OR "ATAC-seq" OR "ChIP-seq" OR "chromatin accessibility"
+     OR methylation OR methylome OR histone OR nucleosome OR multiome
+     OR "single-nucleus" OR "cis-regulatory" OR "gene regulation"
+     OR "regulatory element")
+  )
+
+# Europe PMC feed (Phase 4). Restricted to preprints (SRC:PPR) — PubMed already
+# covers published papers, and a preprint's later published version is re-surfaced
+# by normalized-title match, not by re-fetching it here. The CREATION_DATE window
+# is appended in code (src/fetch_europepmc.py), so keep this to content + source.
+# EPMC query syntax differs from PubMed's; confirm fields at europepmc.org/RestfulWebService.
+europepmc_query: >
+  (chromatin OR CTCF OR cohesin OR ncBAF OR BAF OR "SWI/SNF" OR epigenomic
+   OR "chromatin accessibility" OR "ATAC-seq" OR multiome OR "single-nucleus"
+   OR "3D genome" OR enhancer OR methylome OR nucleosome)
+  AND SRC:PPR
+  AND (PUBLISHER:"bioRxiv" OR PUBLISHER:"medRxiv")
+
+# --- Relevance scoring (Phase 2) ---
+# Two-tier digest scope:
+#   Tier A "Core"  — score >= relevance_threshold, ANY journal.
+#   Tier B "Watch" — score >= broad_threshold AND journal in top_journals (below).
+# Tier B lets adjacent/borderline work in ONLY when it lands in a flagship venue,
+# so it can't flood the digest. Set broad_threshold >= relevance_threshold (or
+# remove it) to disable Tier B and get single-threshold behavior.
+relevance_threshold: 6        # 0-10; tight tier, any journal
+broad_threshold: 4            # 0-10; broad tier, top journals only (< tight)
+digest_max_papers: 50         # safety cap on digest size (highest-scored kept). A
+                              # steady daily run is ~9; this mainly bounds backfill.
+scoring_model: claude-haiku-4-5    # cheap per-paper judge
+digest_model: claude-sonnet-4-6    # stronger model for final digest synthesis
+
+# Flagship venues for the broad (Tier B) scope. Match is on the full name OR the
+# NLM/ISO abbreviation PubMed actually returns (handled in src/journals.py).
+top_journals:
+  - Science
+  - Nature
+  - Cell
+  - Nature Genetics
+  - Cell Genomics
+  - Molecular Cell
+  - Genome Biology
+  - Genome Research

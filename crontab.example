@@ -1,0 +1,19 @@
+# Literature digest — daily cron (Phase 3).
+# Install:  crontab -e   then paste the line below (without this comment block).
+#
+# CRON_TZ pins the schedule to Eastern time regardless of the server's clock, so
+# "07:00" means 7am in Atlanta. (Supported by cron on this Linux box; if your cron
+# ignores CRON_TZ, set the time in the server's own timezone instead.)
+#
+# The wrapper handles conda activation, logging, and email delivery itself.
+# Make it executable once:  chmod +x run_daily.sh
+
+CRON_TZ=America/New_York
+
+# ┌ minute (0)
+# │ ┌ hour (7 = 7am ET)
+# │ │ ┌ day of month (*)
+# │ │ │ ┌ month (*)
+# │ │ │ │ ┌ day of week (1-5 = Mon–Fri; use * for every day)
+# │ │ │ │ │
+  0 7 * * 1-5  /path/to/literature-digest/run_daily.sh

@@ -1,0 +1,20 @@
+# Secrets
+.env
+
+# Private research profile — derived from the maintainer's grants; kept local
+# like .env. Copy research_profile.example.md -> research_profile.md to run.
+config/research_profile.md
+
+# Data / ledger (regenerated at runtime) + local scratch. Keep the dir, drop
+# everything in it (sqlite ledger, preview/term/test scratch, etc.).
+data/*
+!data/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Logs
+*.log
