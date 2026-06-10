@@ -2,14 +2,16 @@
 
 Phase 2 renders a plaintext digest to stdout, grouped per config/digest_format.md.
 The format file is advisory text for the structure; Phase 2 implements the core of
-it deterministically (grouping, ordering, per-paper line, the 25-paper cap). LLM
-synthesis of the "why this matters" blurb can be layered on later; for now the
-stored per-paper rationale is shown directly, which keeps the digest cheap and
-fully offline-testable.
+it deterministically (grouping, ordering, per-paper line, the 25-paper cap). The
+stored per-paper rationale is shown directly, which keeps the per-paper rendering
+cheap and fully offline-testable. The one LLM-written element is the optional
+morning briefing (src/briefing.py) passed in by the caller — renderers only place
+it; with briefing=None the digest is identical to the pre-briefing output.
 """
 from __future__ import annotations
 
 import html
+import textwrap
 from typing import Callable
 
 # Display order for matched_area groups (mirrors config/digest_format.md). Keys are
@@ -123,7 +125,7 @@ def _render_section(groups: dict) -> list[str]:
             lines.append(f"\n• {title}{tag}  [{s.score}]")
             lines.append(f"  {rec.get('journal') or '?'} · {rec.get('pub_date') or '?'}{pub_note}")
             lines.append(f"  {_authors_line(rec)}")
-            lines.append(f"  Why: {s.rationale}")
+            lines.append(f"  {s.rationale}")
             lines.append(f"  {rec.get('url') or ''}")
     return lines
 
@@ -131,7 +133,8 @@ def _render_section(groups: dict) -> list[str]:
 def render_plaintext(scored, tight_threshold: int, run_date: str,
                      broad_threshold: int | None = None,
                      is_top_journal: Callable[[str | None], bool] = _no_journal,
-                     max_papers: int = MAX_PAPERS) -> tuple[str, int]:
+                     max_papers: int = MAX_PAPERS,
+                     briefing: str | None = None) -> tuple[str, int]:
     """Render the two-tier digest to plaintext. Returns (text, n_papers_in_digest)."""
     core, watch, n_omitted = select_tiers(
         scored, tight_threshold, broad_threshold, is_top_journal, max_papers)
@@ -145,6 +148,8 @@ def render_plaintext(scored, tight_threshold: int, run_date: str,
         f"Literature digest — {run_date} ({n} papers)",
         "=" * 64,
     ]
+    if briefing:
+        lines.append("\n" + textwrap.fill(briefing, width=76))
     if n_core:
         lines.append(f"\n# Core matches  ({n_core})")
         lines += _render_section(core)
@@ -190,7 +195,7 @@ def _html_section(groups: dict) -> list[str]:
                 f'{_esc(rec.get("journal") or "?")} · {_esc(rec.get("pub_date") or "?")} · '
                 f'{_esc(_authors_line(rec))}</div>'
                 f'<div style="font-size:13px;color:#333">'
-                f'<i>Why:</i> {_esc(s.rationale)}</div>'
+                f'{_esc(s.rationale)}</div>'
                 f'</div>')
     return parts
 
@@ -198,8 +203,13 @@ def _html_section(groups: dict) -> list[str]:
 def render_html(scored, tight_threshold: int, run_date: str,
                 broad_threshold: int | None = None,
                 is_top_journal: Callable[[str | None], bool] = _no_journal,
-                max_papers: int = MAX_PAPERS) -> tuple[str, int]:
-    """Render the two-tier digest to HTML. Returns (html, n_papers_in_digest)."""
+                max_papers: int = MAX_PAPERS,
+                briefing: str | None = None,
+                feedback_url: str | None = None) -> tuple[str, int]:
+    """Render the two-tier digest to HTML. Returns (html, n_papers_in_digest).
+
+    When `feedback_url` is set, a single 'rate these papers' link to the local
+    feedback page (src/webfeedback.py) is shown under the header."""
     core, watch, n_omitted = select_tiers(
         scored, tight_threshold, broad_threshold, is_top_journal, max_papers)
     n_core = sum(len(v) for v in core.values())
@@ -215,6 +225,17 @@ def render_html(scored, tight_threshold: int, run_date: str,
         f'<div style="color:#888;font-size:13px;margin-bottom:10px">'
         f'{_esc(run_date)} · {n} paper(s)</div>',
     ]
+    if briefing:
+        p.append(
+            f'<div style="background:#f5f7fa;border-left:3px solid #1a4fa0;'
+            f'padding:10px 12px;margin:0 0 16px;font-size:14px;line-height:1.5;'
+            f'color:#333">{_esc(briefing)}</div>')
+    if feedback_url:
+        p.append(
+            f'<div style="font-size:13px;margin:0 0 14px">'
+            f'<a href="{_esc(feedback_url)}" style="color:#1a4fa0">'
+            f'Rate these papers →</a> '
+            f'<span style="color:#999">(opens your local feedback page)</span></div>')
     if n_core:
         p.append(f'<h2 style="font-size:16px;color:#1a1a2e;margin:20px 0 4px">'
                  f'Core matches ({n_core})</h2>')
@@ -256,7 +277,8 @@ def _slack_paper(rec, s) -> str:
 def render_slack(scored, tight_threshold: int, run_date: str,
                  broad_threshold: int | None = None,
                  is_top_journal: Callable[[str | None], bool] = _no_journal,
-                 max_papers: int = MAX_PAPERS) -> list[str]:
+                 max_papers: int = MAX_PAPERS,
+                 briefing: str | None = None) -> list[str]:
     """Render the digest as a list of Slack mrkdwn messages (chunked under the
     per-message limit). Empty list when there are no papers."""
     core, watch, n_omitted = select_tiers(
@@ -270,6 +292,8 @@ def render_slack(scored, tight_threshold: int, run_date: str,
     # Atomic blocks: header / tier label / area label / one paper. We never split
     # within a block, so a paper's lines always stay together.
     blocks: list[str] = [f"*Literature digest — {_slack_esc(run_date)}*  ({n} papers)"]
+    if briefing:
+        blocks.append(f"_{_slack_esc(briefing)}_")
 
     def emit(label: str, groups: dict):
         blocks.append(f"*{label}*")

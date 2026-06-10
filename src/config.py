@@ -62,6 +62,23 @@ def smtp_settings() -> dict:
     }
 
 
+def web_feedback_settings() -> dict:
+    """Local click-to-rate web page (Phase 5). The page runs on this machine
+    bound to localhost and writes ratings to the same ledger; reach it over an
+    SSH tunnel. `url` is what the digest's 'Rate these papers' link points at
+    (defaults to the localhost host:port); set FEEDBACK_URL only if you tunnel to
+    a different local port. `days` bounds how far back the page lists sent papers.
+    """
+    host = os.getenv("FEEDBACK_HOST", "127.0.0.1")
+    port = int(os.getenv("FEEDBACK_PORT", "8765"))
+    return {
+        "host": host,
+        "port": port,
+        "url": os.getenv("FEEDBACK_URL") or f"http://localhost:{port}/",
+        "days": int(os.getenv("FEEDBACK_DAYS", "14")),
+    }
+
+
 def slack_webhook() -> str | None:
     """Slack Incoming Webhook URL for posting the digest (Phase 3+, optional).
     When set, the daily --send run also posts to that channel; absent -> skipped."""

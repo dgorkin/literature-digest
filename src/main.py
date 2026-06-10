@@ -155,10 +155,23 @@ def run(sources_override: list[str] | None = None, do_score: bool = True,
             conn.commit()
             n_scored = sum(1 for _, s in scored if s.ok)
 
+            # Morning briefing (digest_model in query.yaml; remove it to disable).
+            # Written over the papers actually selected for the digest; any
+            # failure returns None and the digest renders without it.
+            briefing = None
+            digest_model = cfg.get("digest_model")
+            if digest_model:
+                from src.briefing import write_briefing
+
+                selected = digest_mod.selected_papers(
+                    scored, threshold, broad_threshold, is_top_journal, max_papers)
+                briefing = write_briefing(
+                    selected, digest_model, window_end.isoformat())
+
             text, n_digest = digest_mod.render_plaintext(
                 scored, threshold, window_end.isoformat(),
                 broad_threshold=broad_threshold, is_top_journal=is_top_journal,
-                max_papers=max_papers)
+                max_papers=max_papers, briefing=briefing)
             if n_digest:
                 print("\n" + text)
             else:
@@ -180,7 +193,9 @@ def run(sources_override: list[str] | None = None, do_score: bool = True,
                         html, _ = digest_mod.render_html(
                             scored, threshold, window_end.isoformat(),
                             broad_threshold=broad_threshold,
-                            is_top_journal=is_top_journal, max_papers=max_papers)
+                            is_top_journal=is_top_journal, max_papers=max_papers,
+                            briefing=briefing,
+                            feedback_url=config.web_feedback_settings()["url"])
                         deliver.send_digest(subject=subject, text_body=text,
                                             html_body=html, smtp=smtp)
                         email_done = delivered_ok = True
@@ -198,7 +213,8 @@ def run(sources_override: list[str] | None = None, do_score: bool = True,
                         msgs = digest_mod.render_slack(
                             scored, threshold, window_end.isoformat(),
                             broad_threshold=broad_threshold,
-                            is_top_journal=is_top_journal, max_papers=max_papers)
+                            is_top_journal=is_top_journal, max_papers=max_papers,
+                            briefing=briefing)
                         slack_mod.post_digest(msgs, webhook)
                         delivered_ok = True
                     except Exception as exc:  # noqa: BLE001
@@ -246,8 +262,27 @@ def main() -> int:
     parser.add_argument("--send", action="store_true",
                         help="email the digest and mark papers sent (needs SMTP_* in .env). "
                              "Without it, the digest only prints to stdout.")
+    parser.add_argument("--feedback-report", action="store_true",
+                        help="print the human-vs-model disagreement report from "
+                             "ratings collected via the web page, and exit.")
     args = parser.parse_args()
+    if args.feedback_report:
+        return feedback_report()
     return run(sources_override=args.sources, do_score=not args.no_score, send=args.send)
+
+
+def feedback_report() -> int:
+    """Print the disagreement report from ratings already in the ledger and exit.
+    (Ratings are written live by the web page — nothing to ingest here.)"""
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    config.load_env()
+    from src import feedback as feedback_mod
+    conn = store.connect(config.get_db_path())
+    store.init_schema(conn)
+    text, _ = feedback_mod.disagreement_report(conn, store)
+    print("\n" + text + "\n")
+    return 0
 
 
 if __name__ == "__main__":

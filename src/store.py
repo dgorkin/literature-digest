@@ -242,6 +242,45 @@ def mark_republication(conn: sqlite3.Connection, source: str, source_id: str,
     conn.commit()
 
 
+def record_feedback(conn: sqlite3.Connection, source: str, source_id: str,
+                    feedback: str, feedback_on: str) -> int:
+    """Record reader feedback for one paper (Phase 5). Latest rating wins —
+    re-rating overwrites. Returns the number of rows updated (0 = no such paper,
+    so the caller can warn about feedback for an unknown id)."""
+    cur = conn.execute(
+        "UPDATE papers SET feedback=?, feedback_on=? WHERE source=? AND source_id=?",
+        (feedback, feedback_on, source, source_id),
+    )
+    conn.commit()
+    return cur.rowcount
+
+
+def sent_for_rating(conn: sqlite3.Connection, days: int = 14) -> list[sqlite3.Row]:
+    """Papers sent within the last `days` (by sent_on), newest first then by
+    score — the list the web feedback page shows, each with its current rating
+    (feedback may be NULL = unrated)."""
+    return conn.execute(
+        """SELECT source, source_id, title, authors, journal, pub_date, url,
+                  is_preprint, relevance_score, relevance_rationale, matched_area,
+                  sent_on, feedback
+           FROM papers
+           WHERE sent_on IS NOT NULL AND sent_on >= date('now', ?)
+           ORDER BY sent_on DESC, relevance_score DESC""",
+        (f"-{int(days)} days",),
+    ).fetchall()
+
+
+def feedback_rows(conn: sqlite3.Connection, limit: int | None = None) -> list[sqlite3.Row]:
+    """Papers that have reader feedback, most recent first — for the disagreement
+    report (model score vs. human rating)."""
+    sql = ("SELECT source, source_id, title, journal, relevance_score, "
+           "matched_area, feedback, feedback_on FROM papers "
+           "WHERE feedback IS NOT NULL ORDER BY feedback_on DESC, id DESC")
+    if limit:
+        sql += f" LIMIT {int(limit)}"
+    return conn.execute(sql).fetchall()
+
+
 def record_run(
     conn: sqlite3.Connection,
     *,

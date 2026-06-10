@@ -64,7 +64,10 @@ broad_threshold: 4            # 0-10; broad tier, top journals only (< tight)
 digest_max_papers: 50         # safety cap on digest size (highest-scored kept). A
                               # steady daily run is ~9; this mainly bounds backfill.
 scoring_model: claude-haiku-4-5    # cheap per-paper judge
-digest_model: claude-sonnet-4-6    # stronger model for final digest synthesis
+digest_model: claude-sonnet-4-6    # writes the 3-5 sentence morning briefing at
+                                   # the top of the digest (one call/day over the
+                                   # selected papers). Remove to disable; a
+                                   # briefing failure never blocks the digest.
 
 # Flagship venues for the broad (Tier B) scope. Match is on the full name OR the
 # NLM/ISO abbreviation PubMed actually returns (handled in src/journals.py).

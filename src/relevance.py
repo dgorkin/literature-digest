@@ -57,7 +57,12 @@ SCORE_TOOL = {
             },
             "rationale": {
                 "type": "string",
-                "description": "One sentence (<=200 chars) justifying the score.",
+                "description": (
+                    "1-2 sentences (<=350 chars): the paper's main finding or "
+                    "contribution, then how it relates to the research program. "
+                    "Summarize the science, not the selection — do not explain "
+                    "or justify the score."
+                ),
             },
         },
         "required": ["score", "matched_area", "rationale"],
@@ -140,7 +145,7 @@ class RelevanceJudge:
                     return Score(
                         score=int(inp["score"]),
                         matched_area=inp.get("matched_area", "Other"),
-                        rationale=(inp.get("rationale") or "").strip()[:300],
+                        rationale=(inp.get("rationale") or "").strip()[:450],
                         model=self.model, profile_hash=self.phash, scored_at=now,
                     )
             raise ValueError("no record_relevance tool_use in response")

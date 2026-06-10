@@ -39,14 +39,26 @@ for r in rows:
     )
     scored.append((rec, s))
 
+# Morning briefing (same path as main.py), so the preview exercises the real
+# digest_model call and renders the briefing at the top of the email.
+briefing = None
+digest_model = cfg.get("digest_model")
+if digest_model:
+    from src.briefing import write_briefing
+    selected = digest_mod.selected_papers(
+        scored, threshold, broad_threshold, is_top_journal, max_papers)
+    briefing = write_briefing(selected, digest_model, run_date)
+    print(f"briefing: {briefing!r}")
+
 text, n = digest_mod.render_plaintext(
     scored, threshold, run_date,
     broad_threshold=broad_threshold, is_top_journal=is_top_journal,
-    max_papers=max_papers)
+    max_papers=max_papers, briefing=briefing)
 html, _ = digest_mod.render_html(
     scored, threshold, run_date,
     broad_threshold=broad_threshold, is_top_journal=is_top_journal,
-    max_papers=max_papers)
+    max_papers=max_papers, briefing=briefing,
+    feedback_url=config.web_feedback_settings()["url"])
 
 subject = f"Literature digest — {run_date} ({n} papers)  [formatting preview]"
 print(f"{len(scored)} papers sent on {run_date}; emailing {n} in digest...")
