@@ -103,13 +103,14 @@ def _ordered_groups(groups: dict):
 
 
 def _authors_line(rec: dict) -> str:
+    """Full author list; long lists are elided to first 3 ... last 3."""
     authors = rec.get("authors") or ""
     parts = [a.strip() for a in authors.split(",") if a.strip()]
     if not parts:
         return "(authors n/a)"
-    if len(parts) <= 3:
+    if len(parts) <= 6:
         return ", ".join(parts)
-    return f"{parts[0]} et al."
+    return ", ".join(parts[:3]) + " ... " + ", ".join(parts[-3:])
 
 
 def _render_section(groups: dict) -> list[str]:
@@ -271,6 +272,7 @@ def _slack_paper(rec, s) -> str:
     return (f"*{title_md}*{tag}\n"
             f"_{_slack_esc(rec.get('journal') or '?')} · "
             f"{_slack_esc(rec.get('pub_date') or '?')}_{pub}\n"
+            f"_{_slack_esc(_authors_line(rec))}_\n"
             f"> {_slack_esc(s.rationale)}")
 
 
