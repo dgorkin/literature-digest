@@ -53,14 +53,20 @@ europepmc_query: >
   AND (PUBLISHER:"bioRxiv" OR PUBLISHER:"medRxiv")
 
 # --- Relevance scoring (Phase 2) ---
-# Two-tier digest scope:
-#   Tier A "Core"  — score >= relevance_threshold, ANY journal.
-#   Tier B "Watch" — score >= broad_threshold AND journal in top_journals (below).
-# Tier B lets adjacent/borderline work in ONLY when it lands in a flagship venue,
-# so it can't flood the digest. Set broad_threshold >= relevance_threshold (or
-# remove it) to disable Tier B and get single-threshold behavior.
-relevance_threshold: 6        # 0-10; tight tier, any journal
-broad_threshold: 4            # 0-10; broad tier, top journals only (< tight)
+# Digest scope by journal class (all thresholds are 0-10 relevance scores):
+#   Tier A "Core"  — a paper is kept if score >= its journal's Core bar:
+#                      * top_journals (below):   >= relevance_threshold
+#                      * every other journal:    >= offlist_threshold (higher)
+#   Tier B "Watch" — score >= broad_threshold AND journal in top_journals.
+# The point: no journal is discarded, but off-list venues face a HIGHER bar than
+# your prioritized journals. Tier B is the mirror image — it lets adjacent work in
+# BELOW the Core bar only when it lands in a flagship venue.
+relevance_threshold: 6        # Core bar for top_journals (any journal if offlist unset)
+offlist_threshold: 7          # Core bar for journals NOT in top_journals. Must be
+                              # > relevance_threshold; unset/<= it -> off-list uses
+                              # relevance_threshold too (the old any-journal behavior).
+                              # Raise to 8 to tighten off-list venues further.
+broad_threshold: 4            # Watch tier: top journals only, below the Core bar
 digest_max_papers: 50         # safety cap on digest size (highest-scored kept). A
                               # steady daily run is ~9; this mainly bounds backfill.
 scoring_model: claude-haiku-4-5    # cheap per-paper judge
@@ -80,3 +86,10 @@ top_journals:
   - Molecular Cell
   - Genome Biology
   - Genome Research
+  - Nature Neuroscience
+  - Neuron
+  - Nature Structural & Molecular Biology
+  - Nature Biotechnology
+  - Nature Methods
+  - Cell Reports
+  - Nature Communications

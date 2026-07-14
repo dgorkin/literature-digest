@@ -131,10 +131,23 @@ Edit `config/query.yaml`:
   anything excluded here the relevance judge never sees.
 - **`europepmc_query`** — the preprint feed's query (Europe PMC syntax differs
   slightly from PubMed's; it's restricted to bioRxiv/medRxiv preprints by default).
-- **`top_journals`** — flagship venues for the optional "Watch" tier.
-- **Thresholds** — `relevance_threshold` (Core tier, any journal) and
-  `broad_threshold` (Watch tier, top journals only). Set `broad_threshold` ≥
-  `relevance_threshold` to disable the Watch tier entirely.
+- **`top_journals`** — your prioritized venues. This list drives both tiers
+  below, so **edit it to your field** — the shipped list is one lab's set.
+  Matching is on the journal string PubMed returns, which is the NLM/ISO
+  abbreviation (e.g. `Nat Genet`), not the full name. `src/journals.py` holds an
+  alias table mapping full names to abbreviations; if you add a journal that
+  isn't in it, add its abbreviation there too so both forms match.
+- **Thresholds** — three knobs let you set the relevance bar *per journal class*:
+  - `relevance_threshold` — the Core bar for your `top_journals`.
+  - `offlist_threshold` — a **higher** Core bar for every journal *not* on the
+    list, so off-list venues have to clear a higher score without being discarded.
+    Leave it unset (or ≤ `relevance_threshold`) and every journal shares one bar.
+  - `broad_threshold` — the "Watch" tier: lets borderline work in *below* the Core
+    bar, but only from `top_journals`. Set it ≥ `relevance_threshold` to disable.
+
+  Together these bracket your priority list from both sides: prioritized journals
+  get a lower bar (Watch) and an easier Core bar, while everything else must clear
+  a higher one. Tune the numbers to how wide or narrow you want the daily digest.
 
 `config/digest_format.md` controls output formatting (grouping, ordering, tone)
 and `config/negatives.json` holds hand-picked near-miss papers used only by the

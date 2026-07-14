@@ -146,6 +146,7 @@ def run(sources_override: list[str] | None = None, do_score: bool = True,
         model = cfg.get("scoring_model", "claude-haiku-4-5")
         threshold = cfg.get("relevance_threshold", 6)
         broad_threshold = cfg.get("broad_threshold")
+        offlist_threshold = cfg.get("offlist_threshold")
         max_papers = cfg.get("digest_max_papers", 25)
         is_top_journal = build_matcher(cfg.get("top_journals"))
         try:
@@ -164,14 +165,16 @@ def run(sources_override: list[str] | None = None, do_score: bool = True,
                 from src.briefing import write_briefing
 
                 selected = digest_mod.selected_papers(
-                    scored, threshold, broad_threshold, is_top_journal, max_papers)
+                    scored, threshold, broad_threshold, is_top_journal, max_papers,
+                    offlist_threshold)
                 briefing = write_briefing(
                     selected, digest_model, window_end.isoformat())
 
             text, n_digest = digest_mod.render_plaintext(
                 scored, threshold, window_end.isoformat(),
                 broad_threshold=broad_threshold, is_top_journal=is_top_journal,
-                max_papers=max_papers, briefing=briefing)
+                max_papers=max_papers, briefing=briefing,
+                offlist_threshold=offlist_threshold)
             if n_digest:
                 print("\n" + text)
             else:
@@ -195,7 +198,8 @@ def run(sources_override: list[str] | None = None, do_score: bool = True,
                             broad_threshold=broad_threshold,
                             is_top_journal=is_top_journal, max_papers=max_papers,
                             briefing=briefing,
-                            feedback_url=config.web_feedback_settings()["url"])
+                            feedback_url=config.web_feedback_settings()["url"],
+                            offlist_threshold=offlist_threshold)
                         deliver.send_digest(subject=subject, text_body=text,
                                             html_body=html, smtp=smtp)
                         email_done = delivered_ok = True
@@ -214,7 +218,7 @@ def run(sources_override: list[str] | None = None, do_score: bool = True,
                             scored, threshold, window_end.isoformat(),
                             broad_threshold=broad_threshold,
                             is_top_journal=is_top_journal, max_papers=max_papers,
-                            briefing=briefing)
+                            briefing=briefing, offlist_threshold=offlist_threshold)
                         slack_mod.post_digest(msgs, webhook)
                         delivered_ok = True
                     except Exception as exc:  # noqa: BLE001
@@ -224,7 +228,8 @@ def run(sources_override: list[str] | None = None, do_score: bool = True,
                 # Mark sent once the digest reached at least one channel.
                 if delivered_ok:
                     delivered = digest_mod.selected_papers(
-                        scored, threshold, broad_threshold, is_top_journal, max_papers)
+                        scored, threshold, broad_threshold, is_top_journal, max_papers,
+                        offlist_threshold)
                     store.mark_sent(
                         conn,
                         [(rec["source"], rec["source_id"]) for rec, _ in delivered],

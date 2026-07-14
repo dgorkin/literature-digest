@@ -42,24 +42,33 @@ def _no_journal(_journal):  # default matcher: broad tier disabled
 
 def select_tiers(scored, tight_threshold: int, broad_threshold: int | None = None,
                  is_top_journal: Callable[[str | None], bool] = _no_journal,
-                 max_papers: int = MAX_PAPERS):
+                 max_papers: int = MAX_PAPERS, offlist_threshold: int | None = None):
     """Two-tier selection (see query.yaml). A paper is included if:
-      - Tier A "Core":  score >= tight_threshold        (any journal), OR
+      - Tier A "Core":  score >= its journal's Core bar, OR
       - Tier B "Watch": score >= broad_threshold AND journal is a top journal.
-    Tier B excludes anything already in Tier A. All Tier-A scores exceed all
-    Tier-B scores (broad_threshold < tight_threshold), so a single score-desc cap
-    drops the weakest Tier-B papers first. Returns
+    The Core bar is `tight_threshold` for a prioritized (top) journal and the
+    higher `offlist_threshold` for any other venue — raising the relevance bar
+    for off-list journals without discarding them. `offlist_threshold` None or
+    <= tight_threshold means off-list papers use tight_threshold too (the prior
+    single-bar behavior).
+    Tier B excludes anything already in Tier A. All Tier-A scores are
+    >= tight_threshold and all Tier-B scores are < tight_threshold, so a single
+    score-desc cap drops the weakest Tier-B papers first. Returns
     (core_groups, watch_groups, n_omitted)."""
     if broad_threshold is None or broad_threshold >= tight_threshold:
         broad_threshold = tight_threshold  # broad tier off -> behaves single-tier
+    if offlist_threshold is None or offlist_threshold <= tight_threshold:
+        offlist_threshold = tight_threshold  # off-list elevation off -> single bar
 
     core, watch = [], []
     for rec, s in scored:
+        top = is_top_journal(rec.get("journal"))
+        core_bar = tight_threshold if top else offlist_threshold
         # A republication is a work the user already received as a preprint and
         # asked to see again on publication — include it regardless of re-score.
-        if s.score >= tight_threshold or rec.get("is_republication"):
+        if s.score >= core_bar or rec.get("is_republication"):
             core.append((rec, s))
-        elif s.score >= broad_threshold and is_top_journal(rec.get("journal")):
+        elif top and s.score >= broad_threshold:
             watch.append((rec, s))
 
     core.sort(key=lambda rs: rs[1].score, reverse=True)
@@ -82,11 +91,12 @@ def _group(items) -> dict:
 
 def selected_papers(scored, tight_threshold: int, broad_threshold: int | None = None,
                     is_top_journal: Callable[[str | None], bool] = _no_journal,
-                    max_papers: int = MAX_PAPERS):
+                    max_papers: int = MAX_PAPERS, offlist_threshold: int | None = None):
     """Flat list of (rec, score) actually included in the digest (Core + Watch,
     after the cap). Used to mark exactly the delivered papers as sent."""
     core, watch, _ = select_tiers(
-        scored, tight_threshold, broad_threshold, is_top_journal, max_papers)
+        scored, tight_threshold, broad_threshold, is_top_journal, max_papers,
+        offlist_threshold)
     out = []
     for groups in (core, watch):
         for items in groups.values():
@@ -135,10 +145,12 @@ def render_plaintext(scored, tight_threshold: int, run_date: str,
                      broad_threshold: int | None = None,
                      is_top_journal: Callable[[str | None], bool] = _no_journal,
                      max_papers: int = MAX_PAPERS,
-                     briefing: str | None = None) -> tuple[str, int]:
+                     briefing: str | None = None,
+                     offlist_threshold: int | None = None) -> tuple[str, int]:
     """Render the two-tier digest to plaintext. Returns (text, n_papers_in_digest)."""
     core, watch, n_omitted = select_tiers(
-        scored, tight_threshold, broad_threshold, is_top_journal, max_papers)
+        scored, tight_threshold, broad_threshold, is_top_journal, max_papers,
+        offlist_threshold)
     n_core = sum(len(v) for v in core.values())
     n_watch = sum(len(v) for v in watch.values())
     n = n_core + n_watch
@@ -206,13 +218,15 @@ def render_html(scored, tight_threshold: int, run_date: str,
                 is_top_journal: Callable[[str | None], bool] = _no_journal,
                 max_papers: int = MAX_PAPERS,
                 briefing: str | None = None,
-                feedback_url: str | None = None) -> tuple[str, int]:
+                feedback_url: str | None = None,
+                offlist_threshold: int | None = None) -> tuple[str, int]:
     """Render the two-tier digest to HTML. Returns (html, n_papers_in_digest).
 
     When `feedback_url` is set, a single 'rate these papers' link to the local
     feedback page (src/webfeedback.py) is shown under the header."""
     core, watch, n_omitted = select_tiers(
-        scored, tight_threshold, broad_threshold, is_top_journal, max_papers)
+        scored, tight_threshold, broad_threshold, is_top_journal, max_papers,
+        offlist_threshold)
     n_core = sum(len(v) for v in core.values())
     n_watch = sum(len(v) for v in watch.values())
     n = n_core + n_watch
@@ -280,11 +294,13 @@ def render_slack(scored, tight_threshold: int, run_date: str,
                  broad_threshold: int | None = None,
                  is_top_journal: Callable[[str | None], bool] = _no_journal,
                  max_papers: int = MAX_PAPERS,
-                 briefing: str | None = None) -> list[str]:
+                 briefing: str | None = None,
+                 offlist_threshold: int | None = None) -> list[str]:
     """Render the digest as a list of Slack mrkdwn messages (chunked under the
     per-message limit). Empty list when there are no papers."""
     core, watch, n_omitted = select_tiers(
-        scored, tight_threshold, broad_threshold, is_top_journal, max_papers)
+        scored, tight_threshold, broad_threshold, is_top_journal, max_papers,
+        offlist_threshold)
     n_core = sum(len(v) for v in core.values())
     n_watch = sum(len(v) for v in watch.values())
     n = n_core + n_watch

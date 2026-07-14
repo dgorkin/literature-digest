@@ -20,6 +20,7 @@ config.load_env()
 cfg = config.load_query_config()
 threshold = cfg.get("relevance_threshold", 6)
 broad_threshold = cfg.get("broad_threshold")
+offlist_threshold = cfg.get("offlist_threshold")
 max_papers = cfg.get("digest_max_papers", 25)
 is_top_journal = build_matcher(cfg.get("top_journals"))
 
@@ -47,7 +48,7 @@ print(f"{len(scored)} papers sent on {run_date}; rendering to Slack...")
 msgs = digest_mod.render_slack(
     scored, threshold, run_date,
     broad_threshold=broad_threshold, is_top_journal=is_top_journal,
-    max_papers=max_papers)
+    max_papers=max_papers, offlist_threshold=offlist_threshold)
 
 print(f"render_slack produced {len(msgs)} message(s); posting...")
 slack_mod.post_digest(msgs, config.slack_webhook())

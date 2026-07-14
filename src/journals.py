@@ -38,6 +38,13 @@ ALIASES: dict[str, set[str]] = {
     "molecular cell": {"mol cell"},
     "genome biology": {"genome biol"},
     "genome research": {"genome res"},
+    "nature neuroscience": {"nat neurosci"},
+    "neuron": set(),  # PubMed abbreviation is identical
+    "nature structural & molecular biology": {"nat struct mol biol"},
+    "nature biotechnology": {"nat biotechnol"},
+    "nature methods": {"nat methods"},
+    "cell reports": {"cell rep"},
+    "nature communications": {"nat commun"},
 }
 
 
