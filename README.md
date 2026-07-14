@@ -19,9 +19,11 @@ Once a day (via cron) the pipeline:
 
 1. **Fetches** newly indexed records from **PubMed** (published papers) and
    **Europe PMC** (bioRxiv / medRxiv preprints) over a rolling multi-day window.
-2. **Deduplicates** against a local SQLite ledger, so each paper is only ever
-   considered — and sent — once, even across sources and across preprint →
-   published transitions.
+2. **Deduplicates** against a local SQLite ledger, so the same record is never
+   sent twice — even when it arrives from more than one source. The one
+   deliberate exception: when a preprint you were already sent later appears as a
+   published paper, that published version is re-surfaced as new, labeled
+   "now published" (see below).
 3. **Scores** every new candidate 0–10 for relevance to *your* research program,
    using a cheap LLM with your research profile as the rubric.
 4. **Selects** the papers worth surfacing (a tight "Core" tier plus an optional
@@ -42,8 +44,16 @@ A few design choices are worth understanding before you adapt it:
 - **Rolling window + ledger, not "yesterday's papers."** PubMed back-dates and
   late-indexes records, so a naive single-day query silently drops papers. The
   agent queries a multi-day window and relies on the ledger — not the date filter
-  — to guarantee each paper is sent exactly once. The window auto-extends to cover
-  any gap since the last successful run, so a missed day self-heals.
+  — so a record already delivered is never re-sent when the window overlaps. The
+  window auto-extends to cover any gap since the last successful run, so a missed
+  day self-heals.
+- **Preprints resurface when they publish.** A preprint and its later published
+  version are different records (different DOIs), and both are worth seeing. If
+  you were already sent the preprint, the published version is re-surfaced as new
+  and included regardless of its score, labeled "now published — you saw the
+  preprint \<date\>". Matching is by normalized title; if the title changed too
+  much to match, the published paper still comes through as an ordinary scored
+  candidate — so you never silently lose it.
 - **The research profile is the product.** Relevance is defined entirely by an
   editable plain-text file. No model retraining, no code changes — you edit prose
   and examples, re-run a backtest, and the behavior changes.
